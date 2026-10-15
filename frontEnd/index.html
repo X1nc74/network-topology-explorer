@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Traceroute Topology Explorer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script
+    type="text/javascript"
+    src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"
+  ></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>Traceroute Topology Explorer</h1>
+      </div>
+
+      <div class="filters">
+        <div class="control">
+          <label for="targetFilter">Target</label>
+          <select id="targetFilter">
+            <option value="ALL">All Targets</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="protocolFilter">Protocol</label>
+          <select id="protocolFilter">
+            <option value="ALL">All Protocols</option>
+            <option value="ICMP">ICMP</option>
+            <option value="UDP">UDP</option>
+            <option value="TCP">TCP</option>
+          </select>
+        </div>
+
+        <label class="toggle">
+          <input type="checkbox" id="hostnameToggle" checked />
+          <span>Show hostname</span>
+        </label>
+      </div>
+    </header>
+
+    <section class="stats" id="summary"></section>
+
+    <main class="content">
+      <section class="graph-panel">
+        <div class="graph-header">
+          <div>
+            <div class="panel-title">Topology Map</div>
+            <div class="panel-subtitle">Drag to pan, scroll to zoom</div>
+          </div>
+          <div class="chips">
+            <span class="chip" id="activeTargetChip">Target: All</span>
+            <span class="chip" id="activeProtocolChip">Protocol: All</span>
+          </div>
+        </div>
+
+        <div id="network"></div>
+      </section>
+
+      <aside class="details-panel">
+        <div class="panel-title">Details</div>
+        <div id="details" class="details-empty">
+          Select a node or edge to inspect details.
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
