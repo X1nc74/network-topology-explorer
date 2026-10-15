@@ -23,7 +23,7 @@ function buildNodeLabel(node, showHostname) {
   return `${node.ip}\n${node.hostname}`;
 }
 
-function aggregateEdges(rawEdges) {
+export function aggregateEdges(rawEdges) {
   const map = new Map();
 
   for (const edge of rawEdges) {
@@ -39,12 +39,16 @@ function aggregateEdges(rawEdges) {
         ttls: [],
         rtts: [],
         statuses: [],
+        missing_hops: 0,
+        ambiguous: false,
       });
     }
 
     const item = map.get(key);
     item.targets.add(edge.target);
     item.ttls.push(edge.ttl);
+    item.missing_hops = Math.max(item.missing_hops, edge.missing_hops || 0);
+    item.ambiguous ||= Boolean(edge.ambiguous);
     if (typeof edge.rtt_ms === "number") item.rtts.push(edge.rtt_ms);
     if (edge.status) item.statuses.push(edge.status);
   }
@@ -58,7 +62,9 @@ function aggregateEdges(rawEdges) {
     ttl_range: `${Math.min(...item.ttls)} - ${Math.max(...item.ttls)}`,
     avg_rtt_ms: item.rtts.length ? Number(avg(item.rtts).toFixed(2)) : null,
     sample_count: item.ttls.length,
-    statuses: item.statuses,
+    statuses: [...new Set(item.statuses)],
+    missing_hops: item.missing_hops,
+    ambiguous: item.ambiguous,
   }));
 }
 
@@ -82,7 +88,7 @@ function computeLevels(edges) {
   return levels;
 }
 
-function buildVisData(graphData, selectedTarget, selectedProtocol, showHostname) {
+export function buildVisData(graphData, selectedTarget, selectedProtocol, showHostname) {
   const filteredRawEdges = graphData.edges.filter((edge) => {
     const targetOk = selectedTarget === "ALL" || edge.target === selectedTarget;
     const protocolOk = selectedProtocol === "ALL" || edge.protocol === selectedProtocol;
@@ -122,6 +128,7 @@ function buildVisData(graphData, selectedTarget, selectedProtocol, showHostname)
     to: edge.to,
     label: edge.protocol,
     arrows: "to",
+    dashes: edge.missing_hops > 0 || edge.ambiguous,
     width: Math.min(2 + edge.sample_count * 0.5, 5),
     color: {
       color: protocolColors[edge.protocol] || "#94a3b8",
@@ -145,11 +152,17 @@ function buildVisData(graphData, selectedTarget, selectedProtocol, showHostname)
   return { nodes, edges };
 }
 
+export function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
 function detailBlock(label, value) {
   return `
     <div class="detail-block">
-      <div class="detail-key">${label}</div>
-      <div class="detail-value">${value}</div>
+      <div class="detail-key">${escapeHtml(label)}</div>
+      <div class="detail-value">${escapeHtml(value)}</div>
     </div>
   `;
 }
@@ -189,8 +202,8 @@ function updateSummary(graphData, selectedTarget, selectedProtocol, visData) {
     </div>
     <div class="stat-card">
       <div class="stat-label">Mode</div>
-      <div class="stat-value">${selectedProtocol}</div>
-      <div class="stat-sub">${selectedTarget}</div>
+      <div class="stat-value">${escapeHtml(selectedProtocol)}</div>
+      <div class="stat-sub">${escapeHtml(selectedTarget)}</div>
     </div>
   `;
 
@@ -220,9 +233,12 @@ function attachEvents(network, visData) {
           detailBlock("Path Segment", `${edge.from} → ${edge.to}`) +
           detailBlock("Targets", edge.targets.join(", ")) +
           detailBlock("TTL Range", edge.ttl_range) +
-          detailBlock("Average RTT", edge.avg_rtt_ms !== null ? `${edge.avg_rtt_ms} ms` : "N/A") +
-          detailBlock("Samples", String(edge.sample_count)) +
-          detailBlock("Statuses", edge.statuses.join(", "))
+          detailBlock("Mean probe RTT", edge.avg_rtt_ms !== null ? `${edge.avg_rtt_ms} ms` : "N/A") +
+          detailBlock("Response samples", String(edge.sample_count)) +
+          detailBlock("Statuses", edge.statuses.join(", ")) +
+          detailBlock("Link interpretation", "Inferred from responding TTL groups") +
+          detailBlock("Unanswered hops spanned", String(edge.missing_hops)) +
+          detailBlock("Alternative-hop ambiguity", edge.ambiguous ? "Yes" : "No")
         );
       }
       return;
