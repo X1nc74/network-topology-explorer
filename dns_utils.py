@@ -4,5 +4,5 @@ import socket
 def resolve_ip(ip):
     try:
         return socket.gethostbyaddr(ip)[0]
-    except:
+    except OSError:
         return None
