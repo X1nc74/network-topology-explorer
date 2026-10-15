@@ -1,59 +1,44 @@
+"""Preserve every probe in JSON and summarize all repetitions in text."""
+
 import json
-import os
 from collections import Counter
+from pathlib import Path
+
+
+def _mean_rtt(probes):
+    values = [p["rtt_ms"] for p in probes if p.get("rtt_ms") is not None]
+    return f"{sum(values) / len(values):.2f}ms" if values else "*"
+
 
 def save_results(all_data, txt_path, json_path):
-    if os.path.dirname(txt_path):
-        os.makedirs(os.path.dirname(txt_path), exist_ok=True)
-    
-    with open(json_path, 'w') as f:
-        json.dump(all_data, f, indent=4)
-    
-    with open(txt_path, 'w') as f:
+    for path in (txt_path, json_path):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(json_path, "w", encoding="utf-8") as file:
+        json.dump(all_data, file, indent=4, allow_nan=False)
+    with open(txt_path, "w", encoding="utf-8") as file:
         for target, hops in all_data.items():
-            f.write(f"Traceroute Report for: {target}\n")
-            f.write("=" * 85 + "\n")
-            header = f"{'Hop':<4} {'Reply IP':<18} {'Domain Name':<30} {'ICMP':<10} {'UDP':<10} {'TCP':<10}\n"
-            f.write(header)
-            f.write("-" * 85 + "\n")
-            
+            file.write(f"Traceroute Report for: {target}\n")
+            file.write("=" * 106 + "\n")
+            file.write("RTTs are means of all available replies for each protocol at this TTL.\n")
+            file.write(f"{'Hop':<5} {'Reply IP':<18} {'Domain Name':<30} {'ICMP mean':<14} {'UDP mean':<14} {'TCP mean':<14}\n")
             for hop in hops:
-                ttl = hop['ttl']
-                rtts = []
-                reply_ip = "*"
-                reply_name = "*"
-
-                for p in hop["probes"]:
-                    rtt_val = f"{p['rtt_ms']:.2f}ms" if p['rtt_ms'] else "*"
-                    rtts.append(rtt_val)
-                    
-                    if p['reply_ip'] and reply_ip == "*":
-                        reply_ip = p['reply_ip']
-                        reply_name = p['reply_name'] if p['reply_name'] else "*"
-
-                row = f"{ttl:<4} {reply_ip:<18} {str(reply_name)[:28]:<30} {rtts[0]:<10} {rtts[1]:<10} {rtts[2]:<10}\n"
-                f.write(row)
-            
-            f.write("\n" + "=" * 30 + " STATISTICAL SUMMARY " + "=" * 30 + "\n")
-            f.write(f"{'Hop':<5} {'Main IP':<20} {'Avg RTT':<15} {'Packet Loss':<12}\n")
-            f.write("-" * 85 + "\n")
-            
+                probes = hop.get("probes", [])
+                first_reply = next((p for p in probes if p.get("reply_ip")), {})
+                rtts = [_mean_rtt([p for p in probes if p.get("protocol") == protocol])
+                        for protocol in ("ICMP", "UDP", "TCP")]
+                file.write(f"{hop['ttl']:<5} {first_reply.get('reply_ip', '*'):<18} "
+                           f"{str(first_reply.get('reply_name') or '*')[:28]:<30} "
+                           f"{rtts[0]:<14} {rtts[1]:<14} {rtts[2]:<14}\n")
+            file.write("\nSTATISTICAL SUMMARY (all protocols combined)\n")
+            file.write(f"{'Hop':<5} {'Main IP':<20} {'Mean RTT':<15} {'Attempts':<10} {'Timeout %':<12} {'Errors':<8}\n")
             for hop in hops:
-                ttl = hop['ttl']
-                probes = hop['probes']
-                
-                lost = sum(1 for p in probes if p["status"] == "TIMEOUT")
-                loss_pct = (lost / len(probes)) * 100
-                
-                valid_rtts = [p["rtt_ms"] for p in probes if p["rtt_ms"] is not None]
-                avg_rtt = f"{sum(valid_rtts)/len(valid_rtts):.2f} ms" if valid_rtts else "N/A"
-                
-                ips = [p["reply_ip"] for p in probes if p["reply_ip"]]
+                probes = hop.get("probes", [])
+                lost = sum(p.get("status") == "TIMEOUT" for p in probes)
+                errors = sum(p.get("status") == "ERROR" for p in probes)
+                loss = f"{lost / len(probes) * 100:.1f}%" if probes else "N/A"
+                ips = [p["reply_ip"] for p in probes if p.get("reply_ip")]
                 main_ip = Counter(ips).most_common(1)[0][0] if ips else "*"
-                
-                summary_line = f"{ttl:<5} {main_ip:<20} {avg_rtt:<15} {loss_pct:>5.1f}%\n"
-                f.write(summary_line)
-                
-            f.write("=" * 85 + "\n\n")
-
+                file.write(f"{hop['ttl']:<5} {main_ip:<20} {_mean_rtt(probes):<15} "
+                           f"{len(probes):<10} {loss:<12} {errors:<8}\n")
+            file.write("Timeout % measures missing probe responses, not end-to-end traffic loss.\n\n")
     print(f"Results successfully saved to {txt_path} and {json_path}")
