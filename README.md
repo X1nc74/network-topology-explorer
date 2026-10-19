@@ -66,7 +66,19 @@ sudo .venv/bin/python main.py targets.txt -q 1
 .venv/bin/python -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open `http://127.0.0.1:8000/frontEnd/index.html`. The frontend expects `output/results.json`; no recorded output dataset was included in the uploaded archive. Its vis-network dependency is loaded from an external CDN.
+Open `http://127.0.0.1:8000/frontEnd/index.html`. The frontend expects `output/results.json`. Its vis-network dependency is loaded from an external CDN.
+
+### Reproducible offline example
+
+The repository includes [a two-hop sample result](examples/sample_results.json) so the explorer can be tried without raw-socket privileges. It models one router (`192.0.2.254`) followed by a destination (`192.0.2.1`), with ICMP, UDP and TCP responses at each TTL. These documentation-range addresses and RTTs are **simulated observations**, not measurements of a live route.
+
+```bash
+mkdir -p output
+cp examples/sample_results.json output/results.json
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Open `http://127.0.0.1:8000/frontEnd/index.html`, select each protocol, and inspect the inferred source → router → destination links. To replace the example with a live measurement, run the tracer with packet privileges using the Quick start commands above. The live run overwrites `output/results.json`.
 
 For the full option table and output interpretation, see [HOWTO.md](HOWTO.md).
 
@@ -79,4 +91,4 @@ node --test tests/frontend.test.mjs
 
 The suite contains 20 Python tests and 6 Node tests. Python tests use real Scapy packet objects while mocking send/receive, name resolution and waiting; native interface/socket initialization is disabled in the test process. Coverage includes a CLI → trace → JSON/text integration check, DNS toggles, response classification, repeated-query means, errors, partial-result interruption and topology filtering/inference.
 
-No live packets were sent. Host packet privileges, live route accuracy and end-to-end browser rendering remain unverified. The text report's `Timeout %` is a missing-response fraction across probes, not a direct measurement of end-to-end traffic loss. No performance, accuracy or throughput metric is claimed from this archive.
+No live packets were sent during this review. The offline example exercises the frontend data transformation but does not establish live route accuracy or end-to-end browser rendering. Host packet privileges remain a prerequisite for a live trace. The text report's `Timeout %` is a missing-response fraction across probes, not a direct measurement of end-to-end traffic loss. No performance, accuracy or throughput metric is claimed from this archive.
