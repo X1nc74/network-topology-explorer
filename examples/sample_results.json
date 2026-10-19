@@ -1,0 +1,20 @@
+{
+  "192.0.2.1": [
+    {
+      "ttl": 1,
+      "probes": [
+        {"protocol": "ICMP", "target_ip": "192.0.2.1", "ttl": 1, "reply_ip": "192.0.2.254", "reply_name": "router.example", "rtt_ms": 1.2, "status": "TIME_EXCEEDED"},
+        {"protocol": "UDP", "target_ip": "192.0.2.1", "ttl": 1, "reply_ip": "192.0.2.254", "reply_name": "router.example", "rtt_ms": 1.4, "status": "TIME_EXCEEDED"},
+        {"protocol": "TCP", "target_ip": "192.0.2.1", "ttl": 1, "reply_ip": "192.0.2.254", "reply_name": "router.example", "rtt_ms": 1.6, "status": "TIME_EXCEEDED"}
+      ]
+    },
+    {
+      "ttl": 2,
+      "probes": [
+        {"protocol": "ICMP", "target_ip": "192.0.2.1", "ttl": 2, "reply_ip": "192.0.2.1", "reply_name": "destination.example", "rtt_ms": 2.1, "status": "REACHED"},
+        {"protocol": "UDP", "target_ip": "192.0.2.1", "ttl": 2, "reply_ip": "192.0.2.1", "reply_name": "destination.example", "rtt_ms": 2.3, "status": "REACHED"},
+        {"protocol": "TCP", "target_ip": "192.0.2.1", "ttl": 2, "reply_ip": "192.0.2.1", "reply_name": "destination.example", "rtt_ms": 2.5, "status": "REACHED"}
+      ]
+    }
+  ]
+}
